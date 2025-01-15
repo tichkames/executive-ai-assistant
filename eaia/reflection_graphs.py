@@ -62,7 +62,8 @@ You should return the full prompt, so if there's anything from before that you w
 
 
 async def update_general(state: ReflectionState, config, store: BaseStore):
-    reflection_model = ChatOpenAI(model="o1", disable_streaming=True)
+    reflection_model = ChatOpenAI(
+        model="o1-preview-2024-09-12", disable_streaming=True)
     # reflection_model = ChatAnthropic(model="claude-3-5-sonnet-latest")
     namespace = (state["assistant_key"],)
     key = state["prompt_key"]
@@ -91,7 +92,6 @@ async def update_general(state: ReflectionState, config, store: BaseStore):
         await store.aput(
             namespace, key, {"data": output["new_prompt"]}, index=False
         )
-
 
 
 general_reflection_graph = StateGraph(ReflectionState)
@@ -152,8 +152,7 @@ async def determine_what_to_update(state: MultiMemoryInput):
     reflection_model = ChatAnthropic(model="claude-3-5-sonnet-latest")
     trajectory = get_trajectory_clean(state["messages"])
     types_of_prompts = "\n".join(
-        [f"`{p_type}`: {MEMORY_TO_UPDATE[p_type]}" for p_type in state["prompt_types"]]
-    )
+        [f"`{p_type}`: {MEMORY_TO_UPDATE[p_type]}" for p_type in state["prompt_types"]])
     prompt = CHOOSE_MEMORY_PROMPT.format(
         trajectory=trajectory,
         feedback=state["feedback"],
@@ -163,7 +162,8 @@ async def determine_what_to_update(state: MultiMemoryInput):
     class MemoryToUpdate(TypedDict):
         memory_types_to_update: list[str]
 
-    response = reflection_model.with_structured_output(MemoryToUpdate).invoke(prompt)
+    response = reflection_model.with_structured_output(
+        MemoryToUpdate).invoke(prompt)
     sends = []
     for t in response["memory_types_to_update"]:
         _state = {
