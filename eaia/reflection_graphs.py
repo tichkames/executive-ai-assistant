@@ -62,9 +62,9 @@ You should return the full prompt, so if there's anything from before that you w
 
 
 async def update_general(state: ReflectionState, config, store: BaseStore):
-    reflection_model = ChatOpenAI(
-        model="o1-preview-2024-09-12", disable_streaming=True)
-    # reflection_model = ChatAnthropic(model="claude-3-5-sonnet-latest")
+    # reflection_model = ChatOpenAI(
+    #     model="o1-preview", disable_streaming=True)
+    reflection_model = ChatAnthropic(model="claude-3-5-sonnet-latest")
     namespace = (state["assistant_key"],)
     key = state["prompt_key"]
     result = await store.aget(namespace, key)

@@ -36,8 +36,8 @@ def route_after_triage(
         return "mark_as_read_node"
     elif state["triage"].response == "notify":
         return "notify"
-    elif state["triage"].response == "question":
-        return "draft_response"
+    # elif state["triage"].response == "question":
+    #     return "draft_response"
     else:
         raise ValueError
 
@@ -72,7 +72,8 @@ def take_action(
 
 def bad_tool_name(state: State):
     tool_call = state["messages"][-1].tool_calls[0]
-    message = f"Could not find tool with name `{tool_call['name']}`. Make sure you are calling one of the allowed tools!"
+    message = f"Could not find tool with name `{tool_call['name']}`. \
+        Make sure you are calling one of the allowed tools!"
     last_message = state["messages"][-1]
     last_message.tool_calls[0]["name"] = last_message.tool_calls[0]["name"].replace(
         ":", ""
@@ -126,7 +127,8 @@ def send_cal_invite_node(state, config):
         )
         message = "Sent calendar invite!"
     except Exception as e:
-        message = f"Got the following error when sending a calendar invite: {e}"
+        message = f"Got the following error when sending a calendar invite: \
+            {e}"
     return {"messages": [ToolMessage(content=message, tool_call_id=tool_call["id"])]}
 
 

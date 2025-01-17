@@ -21,7 +21,7 @@ class RespondTo(BaseModel):
     logic: str = Field(
         description="logic on WHY the response choice is the way it is", default=""
     )
-    response: Literal["no", "email", "notify", "question"] = "no"
+    response: Literal["no", "email", "notify"] = "no"
 
 
 class ResponseEmailDraft(BaseModel):
@@ -44,7 +44,8 @@ class ReWriteEmail(BaseModel):
     tone_logic: str = Field(
         description="Logic for what the tone of the rewritten email should be"
     )
-    rewritten_content: str = Field(description="Content rewritten with the new tone")
+    rewritten_content: str = Field(
+        description="Content rewritten with the new tone")
 
 
 class Question(BaseModel):
