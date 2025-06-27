@@ -19,15 +19,13 @@ async def main(
     email: Optional[str] = None,
 ):
     if email is None:
-        email_address = get_config({"configurable": {}})["email"]
+        email_address = (await get_config({"configurable": {}}))["email"]
     else:
         email_address = email
     if url is None:
         client = get_client(url="http://127.0.0.1:2024")
     else:
-        client = get_client(
-            url=url
-        )
+        client = get_client(url=url)
 
     # TODO: This really should be async
     for email in fetch_group_emails(

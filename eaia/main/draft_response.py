@@ -50,7 +50,7 @@ When adding new recipients - only do that if {name} explicitly asks for it and y
 # Using the `SendCalendarInvite` tool
 
 Sometimes you will want to schedule a calendar event. You can do this with the `SendCalendarInvite` tool.
-If you are sure that {name} would want to schedule a meeting, and you know that {name}'s calendar is free, you can schedule a meeting by calling the `SendCalendarInvite` tool. {name} trusts you to pick good times for meetings. You shouldn't ask {name} for what meeting times are preferred, but you should make sure he wants to meet. 
+If you are sure that {name} would want to schedule a meeting, and you know that {name}'s calendar is free, you can schedule a meeting by calling the `SendCalendarInvite` tool. {name} trusts you to pick good times for meetings. You shouldn't ask {name} for what meeting times are preferred, but you should make sure he wants to meet.
 
 {schedule_preferences}
 
@@ -85,8 +85,6 @@ async def draft_response(state: State, config: RunnableConfig, store: BaseStore)
     llm = ChatOpenAI(
         model=model,
         temperature=0,
-        parallel_tool_calls=False,
-        tool_choice="required",
     )
     tools = [
         NewEmailDraft,
@@ -98,14 +96,16 @@ async def draft_response(state: State, config: RunnableConfig, store: BaseStore)
     messages = state.get("messages") or []
     if len(messages) > 0:
         tools.append(Ignore)
-    prompt_config = get_config(config)
+    prompt_config = await get_config(config)
     namespace = (config["configurable"].get("assistant_id", "default"),)
     key = "schedule_preferences"
     result = await store.aget(namespace, key)
     if result and "data" in result.value:
         schedule_preferences = result.value["data"]
     else:
-        await store.aput(namespace, key, {"data": prompt_config["schedule_preferences"]})
+        await store.aput(
+            namespace, key, {"data": prompt_config["schedule_preferences"]}
+        )
         schedule_preferences = prompt_config["schedule_preferences"]
     key = "random_preferences"
     result = await store.aget(namespace, key)
@@ -121,7 +121,9 @@ async def draft_response(state: State, config: RunnableConfig, store: BaseStore)
     if result and "data" in result.value:
         response_preferences = result.value["data"]
     else:
-        await store.aput(namespace, key, {"data": prompt_config["response_preferences"]})
+        await store.aput(
+            namespace, key, {"data": prompt_config["response_preferences"]}
+        )
         response_preferences = prompt_config["response_preferences"]
     _prompt = EMAIL_WRITING_INSTRUCTIONS.format(
         schedule_preferences=schedule_preferences,
@@ -141,14 +143,15 @@ async def draft_response(state: State, config: RunnableConfig, store: BaseStore)
         ),
     )
 
-    model = llm.bind_tools(tools)
+    model = llm.bind_tools(tools, tool_choice="any", parallel_tool_calls=False)
     messages = [{"role": "user", "content": input_message}] + messages
     i = 0
     while i < 5:
         response = await model.ainvoke(messages)
         if len(response.tool_calls) != 1:
             i += 1
-            messages += [{"role": "user", "content": "Please call a valid tool call."}]
+            messages += [{"role": "user",
+                          "content": "Please call a valid tool call."}]
         else:
             break
     return {"draft": response, "messages": [response]}

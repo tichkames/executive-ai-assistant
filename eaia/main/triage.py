@@ -15,7 +15,7 @@ from eaia.main.config import get_config
 
 triage_prompt = """You are {full_name}'s executive assistant. You are a top-notch executive assistant who cares about {name} performing as well as possible.
 
-{background}. 
+{background}.
 
 {name} gets lots of emails. Your job is to categorize the below email to see whether is it worth responding to.
 
@@ -47,7 +47,7 @@ async def triage_input(state: State, config: RunnableConfig, store: BaseStore):
     model = config["configurable"].get("model", "gpt-4o")
     llm = ChatOpenAI(model=model, temperature=0)
     examples = await get_few_shot_examples(state["email"], store, config)
-    prompt_config = get_config(config)
+    prompt_config = await get_config(config)
     input_message = triage_prompt.format(
         email_thread=state["email"]["page_content"],
         author=state["email"]["from_email"],
@@ -61,9 +61,12 @@ async def triage_input(state: State, config: RunnableConfig, store: BaseStore):
         triage_email=prompt_config["triage_email"],
         triage_notify=prompt_config["triage_notify"],
     )
-    model = llm.with_structured_output(RespondTo).bind(
-        tool_choice={"type": "function", "function": {"name": "RespondTo"}}
-    )
+    tools = [
+        RespondTo,
+    ]
+    llm.bind_tools(tools, tool_choice={
+                   "type": "function", "function": {"name": "RespondTo"}})
+    model = llm.with_structured_output(RespondTo)
     response = await model.ainvoke(input_message)
     if len(state["messages"]) > 0:
         delete_messages = [RemoveMessage(id=m.id) for m in state["messages"]]

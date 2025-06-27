@@ -72,9 +72,9 @@ async def save_email(state: State, config, store: BaseStore, status: str):
 
 @traceable
 async def send_message(state: State, config, store):
-    prompt_config = get_config(config)
+    prompt_config = await get_config(config)
     memory = prompt_config["memory"]
-    user = prompt_config['name']
+    user = prompt_config["name"]
     tool_call = state["messages"][-1].tool_calls[0]
     request: HumanInterrupt = {
         "action_request": {"action": tool_call["name"], "args": tool_call["args"]},
@@ -138,9 +138,9 @@ async def send_message(state: State, config, store):
 
 @traceable
 async def send_email_draft(state: State, config, store):
-    prompt_config = get_config(config)
+    prompt_config = await get_config(config)
     memory = prompt_config["memory"]
-    user = prompt_config['name']
+    user = prompt_config["name"]
     tool_call = state["messages"][-1].tool_calls[0]
     request: HumanInterrupt = {
         "action_request": {"action": tool_call["name"], "args": tool_call["args"]},
@@ -220,7 +220,9 @@ async def send_email_draft(state: State, config, store):
                     },
                     {
                         "role": "assistant",
-                        "content": state["messages"][-1].tool_calls[0]["args"]["content"],
+                        "content": state["messages"][-1].tool_calls[0]["args"][
+                            "content"
+                        ],
                     },
                 ],
                 "feedback": f"A better response would have been: {corrected}",
@@ -239,9 +241,9 @@ async def send_email_draft(state: State, config, store):
 
 @traceable
 async def notify(state: State, config, store):
-    prompt_config = get_config(config)
+    prompt_config = await get_config(config)
     memory = prompt_config["memory"]
-    user = prompt_config['name']
+    user = prompt_config["name"]
     request: HumanInterrupt = {
         "action_request": {"action": "Notify", "args": {}},
         "config": {
@@ -299,9 +301,9 @@ async def notify(state: State, config, store):
 
 @traceable
 async def send_cal_invite(state: State, config, store):
-    prompt_config = get_config(config)
+    prompt_config = await get_config(config)
     memory = prompt_config["memory"]
-    user = prompt_config['name']
+    user = prompt_config["name"]
     tool_call = state["messages"][-1].tool_calls[0]
     request: HumanInterrupt = {
         "action_request": {"action": tool_call["name"], "args": tool_call["args"]},

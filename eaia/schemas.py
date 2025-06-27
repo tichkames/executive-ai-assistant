@@ -1,5 +1,5 @@
 from typing import Annotated, List, Literal
-from langchain_core.pydantic_v1 import BaseModel, Field
+from pydantic import BaseModel, Field
 from langgraph.graph.message import AnyMessage
 from typing_extensions import TypedDict
 
@@ -21,7 +21,7 @@ class RespondTo(BaseModel):
     logic: str = Field(
         description="logic on WHY the response choice is the way it is", default=""
     )
-    response: Literal["no", "email", "notify"] = "no"
+    response: Literal["no", "email", "notify", "question"] = "no"
 
 
 class ResponseEmailDraft(BaseModel):
@@ -44,8 +44,7 @@ class ReWriteEmail(BaseModel):
     tone_logic: str = Field(
         description="Logic for what the tone of the rewritten email should be"
     )
-    rewritten_content: str = Field(
-        description="Content rewritten with the new tone")
+    rewritten_content: str = Field(description="Content rewritten with the new tone")
 
 
 class Question(BaseModel):

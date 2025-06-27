@@ -11,7 +11,7 @@ rewrite_prompt = """You job is to rewrite an email draft to sound more like {nam
 
 {name}'s assistant just drafted an email. It is factually correct, but it may not sound like {name}. \
 Your job is to rewrite the email keeping the information the same (do not add anything that is made up!) \
-but adjusting the tone. 
+but adjusting the tone.
 
 {instructions}
 
@@ -37,7 +37,7 @@ async def rewrite(state: State, config, store):
     draft = prev_message.tool_calls[0]["args"]["content"]
     namespace = (config["configurable"].get("assistant_id", "default"),)
     result = await store.aget(namespace, "rewrite_instructions")
-    prompt_config = get_config(config)
+    prompt_config = await get_config(config)
     if result and "data" in result.value:
         _prompt = result.value["data"]
     else:
@@ -56,9 +56,12 @@ async def rewrite(state: State, config, store):
         instructions=_prompt,
         name=prompt_config["name"],
     )
-    model = llm.with_structured_output(ReWriteEmail).bind(
-        tool_choice={"type": "function", "function": {"name": "ReWriteEmail"}}
-    )
+    tools = [
+        ReWriteEmail,
+    ]
+    llm.bind_tools(tools, tool_choice={
+                   "type": "function", "function": {"name": "ReWriteEmail"}})
+    model = llm.with_structured_output(ReWriteEmail)
     response = await model.ainvoke(input_message)
     tool_calls = [
         {

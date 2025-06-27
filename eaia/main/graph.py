@@ -1,4 +1,5 @@
 """Overall agent."""
+
 import json
 from typing import TypedDict, Literal
 from langgraph.graph import END, StateGraph
@@ -36,8 +37,8 @@ def route_after_triage(
         return "mark_as_read_node"
     elif state["triage"].response == "notify":
         return "notify"
-    # elif state["triage"].response == "question":
-    #     return "draft_response"
+    elif state["triage"].response == "question":
+        return "draft_response"
     else:
         raise ValueError
 
@@ -113,10 +114,10 @@ def enter_after_human(
                 raise ValueError
 
 
-def send_cal_invite_node(state, config):
+async def send_cal_invite_node(state, config):
     tool_call = state["messages"][-1].tool_calls[0]
     _args = tool_call["args"]
-    email = get_config(config)["email"]
+    email = await get_config(config)["email"]
     try:
         send_calendar_invite(
             _args["emails"],
@@ -132,10 +133,10 @@ def send_cal_invite_node(state, config):
     return {"messages": [ToolMessage(content=message, tool_call_id=tool_call["id"])]}
 
 
-def send_email_node(state, config):
+async def send_email_node(state, config):
     tool_call = state["messages"][-1].tool_calls[0]
     _args = tool_call["args"]
-    email = get_config(config)["email"]
+    email = await get_config(config)["email"]
     new_receipients = _args["new_recipients"]
     if isinstance(new_receipients, str):
         new_receipients = json.loads(new_receipients)
