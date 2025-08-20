@@ -15,8 +15,8 @@ Table of contents
   - [Ingest emails](#ingest-emails-locally)
   - [Connect to Agent Inbox](#set-up-agent-inbox-with-local-eaia)
   - [Use Agent Inbox](#use-agent-inbox)
-- [Run in production (LangGraph Cloud)](#run-in-production--langgraph-cloud-)
-  - [Setup EAIA on LangGraph Cloud](#set-up-eaia-on-langgraph-cloud)
+- [Run in production (LangGraph Platform)](#run-in-production--langgraph-platform)
+  - [Setup EAIA on LangGraph Platform](#set-up-eaia-on-langgraph-platform)
   - [Ingest manually](#ingest-manually)
   - [Set up cron job](#set-up-cron-job)
 
@@ -24,26 +24,27 @@ Table of contents
 
 ### Env
 
-1. Fork and then clone this repo. Note: make sure to fork it first, as in order to deploy this you will need your own repo.
+1. Fork and clone this repo. Note: make sure to fork it first, as in order to deploy this you will need your own repo.
 2. Create a Python virtualenv and activate it (e.g. `pyenv virtualenv 3.11.1 eaia`, `pyenv activate eaia`)
 3. Run `pip install -e .` to install dependencies and the package
 
-### Set up credentials
+### Set up your credentials
 
 1. Export OpenAI API key (`export OPENAI_API_KEY=...`)
 2. Export Anthropic API key (`export ANTHROPIC_API_KEY=...`)
-3. Enable Google
+3. Set up Google OAuth
    1. [Enable the API](https://developers.google.com/gmail/api/quickstart/python#enable_the_api)
       - Enable Gmail API if not already by clicking the blue button `Enable the API`
    2. [Authorize credentials for a desktop application](https://developers.google.com/gmail/api/quickstart/python#authorize_credentials_for_a_desktop_application)
   
 > Note: If you're using a personal email (non-Google Workspace), select "External" as the User Type in the OAuth consent screen. With "External" selected, you must add your email as a test user in the Google Cloud Console under "OAuth consent screen" > "Test users" to avoid the "App has not completed verification" error. The "Internal" option only works for Google Workspace accounts.
 
-4. Download the client secret. After that, run these commands:
-5. `mkdir eaia/.secrets` - This will create a folder for secrets
-6. `mv ${PATH-TO-CLIENT-SECRET.JSON} eaia/.secrets/secrets.json` - This will move the client secret you just created to that secrets folder
-7. `python scripts/setup_gmail.py` - This will generate another file at `eaia/.secrets/token.json` for accessing Google services.
-8. Export LangSmith API key (`export LANGSMITH_API_KEY`)
+5. Download the client secret. After that, run these commands:
+6. `mkdir eaia/.secrets` - This will create a folder for secrets
+7. `mv ${PATH-TO-CLIENT-SECRET.JSON} eaia/.secrets/secrets.json` - This will move the client secret you just created to that secrets folder
+8. `python scripts/setup_gmail.py` - This will create the Google OAuth provider using LangChain Auth and handle the initial authentication flow.
+
+**Authentication Flow**: EAIA uses LangChain Auth for OAuth management. The setup script creates a Google OAuth provider that handles token storage and refresh automatically. When you first run the application, you'll be prompted to complete OAuth authentication if needed.
 
 ### Configuration
 
@@ -53,7 +54,7 @@ The configuration for EAIA can be found in `eaia/main/config.yaml`. Every key in
 - `full_name`: Full name of user
 - `name`: First name of user
 - `background`: Basic info on who the user is
-- `timezone`: Default timezone the user is in
+- `timezone`: Default timezone where the user is
 - `schedule_preferences`: Any preferences for how calendar meetings are scheduled. E.g. length, name of meetings, etc
 - `background_preferences`: Any background information that may be needed when responding to emails. E.g. coworkers to loop in, etc.
 - `response_preferences`: Any preferences for what information to include in emails. E.g. whether to send calendly links, etc.
@@ -66,7 +67,7 @@ The configuration for EAIA can be found in `eaia/main/config.yaml`. Every key in
 
 You can run EAIA locally.
 This is useful for testing it out, but when wanting to use it for real you will need to have it always running (to run the cron job to check for emails).
-See [this section](#run-in-production--langgraph-cloud-) for instructions on how to run in production (on LangGraph Cloud)
+See [this section](#run-in-production--langgraph-platform) for instructions on how to run in production (on LangGraph Platform)
 
 ### Set up EAIA locally
 
@@ -102,45 +103,42 @@ After we have [run it locally](#run-locally), we can interract with any results.
 
 You can now interract with EAIA in the Agent Inbox.
 
-## Run in production (LangGraph Cloud)
+## Run in production (LangGraph Platform)
 
-These instructions will go over how to run EAIA in LangGraph Cloud.
-You will need a LangSmith Plus account to be able to access [LangGraph Cloud](https://langchain-ai.github.io/langgraph/concepts/langgraph_cloud/)
+These instructions will go over how to run EAIA in LangGraph Platform.
+You will need a LangSmith Plus account to be able to access [LangGraph Platform](https://docs.langchain.com/langgraph-platform)
 
-If desired, you can always run EAIA in a self-hosted manner using LangGraph Platform [Lite](https://langchain-ai.github.io/langgraph/concepts/self_hosted/#self-hosted-lite) or [Enterprise](https://langchain-ai.github.io/langgraph/concepts/self_hosted/#self-hosted-enterprise).
-
-### Set up EAIA on LangGraph Cloud
+### Set up EAIA on LangGraph Platform
 
 1. Make sure you have a LangSmith Plus account
-2. Navigate to the deployments page in LangSmith
-3. Click `New Deployment`
-4. Connect it to your GitHub repo containing this code.
-5. Give it a name like `Executive-AI-Assistant`
-6. Add the following environment variables
+2. Run the local setup first to create the Google OAuth provider (`python scripts/setup_gmail.py`)
+3. Navigate to the deployments page in LangSmith
+4. Click `New Deployment`
+5. Connect it to your GitHub repo containing this code.
+6. Give it a name like `Executive-AI-Assistant`
+7. Add the following environment variables
    1. `OPENAI_API_KEY`
-   2. `ANTHROPIC_API_KEY`
-   3. `GMAIL_SECRET` - This is the value in `eaia/.secrets/secrets.json`
-   4. `GMAIL_TOKEN` - This is the value in `eaia/.secrets/token.json`
-7. Click `Submit` and watch your EAIA deploy
+   2. `ANTHROPIC_API_KEY`  
+8. Click `Submit` and watch your EAIA deploy
 
 ### Ingest manually
 
-Let's now kick off a manual ingest job to ingest some emails and run them through our LangGraph Cloud EAIA.
+Let's now kick off a manual ingest job to ingest some emails and run them through our LangGraph Platform EAIA.
 
-First, get your `LANGGRAPH_CLOUD_URL`
+First, get your `LANGGRAPH_DEPLOYMENT_URL`
 
 To kick off an ingest job, run:
 
 ```shell
-python scripts/run_ingest.py --minutes-since 120 --rerun 1 --early 0 --url ${LANGGRAPH-CLOUD-URL}
+python scripts/run_ingest.py --minutes-since 120 --rerun 1 --early 0 --url ${LANGGRAPH_DEPLOYMENT_URL}
 ```
 
 This will ingest all emails in the last 120 minutes (`--minutes-since`). It will NOT break early if it sees an email it already saw (`--early 0`) and it will
-rerun ones it has seen before (`--rerun 1`). It will run against the prod instance we have running (`--url ${LANGGRAPH-CLOUD-URL}`)
+rerun ones it has seen before (`--rerun 1`). It will run against the prod instance we have running (`--url ${LANGGRAPH_DEPLOYMENT_URL}`)
 
-### Set up Agent Inbox with LangGraph Cloud EAIA
+### Set up Agent Inbox with LangGraph Platform EAIA
 
-After we have [deployed it](#set-up-eaia-on-langgraph-cloud), we can interract with any results.
+After we have [deployed it](#set-up-eaia-on-langgraph-platform), we can interract with any results.
 
 1. Go to [Agent Inbox](https://dev.agentinbox.ai/)
 2. Connect this to your locally running EAIA agent:
@@ -157,7 +155,7 @@ You probably don't want to manually run ingest all the time. Using LangGraph Pla
 that runs on some schedule to check for new emails. You can set this up with:
 
 ```shell
-python scripts/setup_cron.py --url ${LANGGRAPH-CLOUD-URL}
+python scripts/setup_cron.py --url ${LANGGRAPH_DEPLOYMENT_URL}
 ```
 
 ## Advanced Options
