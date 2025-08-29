@@ -7,7 +7,9 @@ import os
 import json
 
 from dateutil import parser
+from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 import base64
 from email.mime.multipart import MIMEMultipart
@@ -25,62 +27,45 @@ _SCOPES = [
     "https://www.googleapis.com/auth/gmail.modify",
     "https://www.googleapis.com/auth/calendar",
 ]
+_ROOT = Path(__file__).parent.absolute()
+_PORT = 54191
+_SECRETS_DIR = _ROOT / ".secrets"
+_SECRETS_PATH = str(_SECRETS_DIR / "secrets.json")
+_TOKEN_PATH = str(_SECRETS_DIR / "token.json")
 
 
 async def get_credentials(
-    user_email: str,
-    langsmith_api_key: str | None = None
+    gmail_token: str | None = None, gmail_secret: str | None = None
 ) -> Credentials:
-    """Get Google API credentials using langchain auth-client.
-    
-    Args:
-        user_email: User's Gmail email address (used as user_id for auth)
-        langsmith_api_key: LangSmith API key for auth client
-        
-    Returns:
-        Google OAuth2 credentials
-    """
-    api_key = langsmith_api_key or os.getenv("LANGSMITH_API_KEY")
-    if not api_key:
-        raise ValueError("LANGSMITH_API_KEY environment variable must be set")
-    
-    client = Client(api_key=api_key)
-    
-    try:
-        # Authenticate with Google using the user's email as user_id
-        auth_result = await client.authenticate(
-            provider="google",
-            scopes=_SCOPES,
-            user_id=user_email
-        )
-        
-        if auth_result.needs_auth:
-            print(f"Please visit: {auth_result.auth_url}")
-            print("Complete the OAuth flow and then retry.")
-            
-            # Wait for completion outside of LangGraph context
-            completed_result = await client.wait_for_completion(
-                auth_id=auth_result.auth_id,
-                timeout=300
-            )
-            token = completed_result.token
+    creds = None
+    _SECRETS_DIR.mkdir(parents=True, exist_ok=True)
+    gmail_token = gmail_token or os.getenv("GMAIL_TOKEN")
+    if gmail_token:
+        with open(_TOKEN_PATH, "w") as token:
+            token.write(gmail_token)
+    gmail_secret = gmail_secret or os.getenv("GMAIL_SECRET")
+    if gmail_secret:
+        with open(_SECRETS_PATH, "w") as secret:
+            secret.write(gmail_secret)
+    if os.path.exists(_TOKEN_PATH):
+        creds = Credentials.from_authorized_user_file(_TOKEN_PATH)
+
+    if not creds or not creds.valid or not creds.has_scopes(_SCOPES):
+        if (
+            creds
+            and creds.expired
+            and creds.refresh_token
+            and creds.has_scopes(_SCOPES)
+        ):
+            creds.refresh(Request())
         else:
-            token = auth_result.token
-        
-        if not token:
-            raise ValueError("Failed to obtain access token")
-        
-        # Create credentials object from the token
-        # langchain auth-client returns the access token as a string
-        creds = Credentials(
-            token=token,
-            scopes=_SCOPES
-        )
-        
-        return creds
-        
-    finally:
-        await client.close()
+            flow = InstalledAppFlow.from_client_secrets_file(
+                _SECRETS_PATH, _SCOPES)
+            creds = flow.run_local_server(port=_PORT)
+        with open(_TOKEN_PATH, "w") as token:
+            token.write(creds.to_json())
+
+    return creds
 
 
 def extract_message_part(msg):
@@ -137,7 +122,8 @@ def get_recipients(
         if header["name"].lower() == "from":
             sender = header["value"]
     if sender:
-        recipients.add(sender)  # Ensure the original sender is included in the response
+        # Ensure the original sender is included in the response
+        recipients.add(sender)
     for r in list(recipients):
         if email_address in r:
             recipients.remove(r)
@@ -145,7 +131,8 @@ def get_recipients(
 
 
 def send_message(service, user_id, message):
-    message = service.users().messages().send(userId=user_id, body=message).execute()
+    message = service.users().messages().send(
+        userId=user_id, body=message).execute()
     return message
 
 
@@ -158,7 +145,7 @@ def send_email(
     addn_receipients=None,
 ):
     import asyncio
-    creds = asyncio.run(get_credentials(email_address))
+    creds = asyncio.run(get_credentials(gmail_token, gmail_secret))
 
     service = build("gmail", "v1", credentials=creds)
     message = service.users().messages().get(userId="me", id=email_id).execute()
@@ -190,7 +177,7 @@ async def fetch_group_emails(
     gmail_token: str | None = None,
     gmail_secret: str | None = None,
 ) -> Iterable[EmailData]:
-    creds = await get_credentials(to_email)
+    creds = await get_credentials(gmail_token, gmail_secret)
 
     service = build("gmail", "v1", credentials=creds)
     after = int((datetime.now() - timedelta(minutes=minutes_since)).timestamp())
@@ -216,7 +203,8 @@ async def fetch_group_emails(
     for message in messages:
         try:
             msg = (
-                service.users().messages().get(userId="me", id=message["id"]).execute()
+                service.users().messages().get(
+                    userId="me", id=message["id"]).execute()
             )
             thread_id = msg["threadId"]
             payload = msg["payload"]
@@ -247,11 +235,13 @@ async def fetch_group_emails(
                     header["value"] for header in headers if header["name"] == "Subject"
                 )
                 from_email = next(
-                    (header["value"] for header in headers if header["name"] == "From"),
+                    (header["value"]
+                     for header in headers if header["name"] == "From"),
                     "",
                 ).strip()
                 _to_email = next(
-                    (header["value"] for header in headers if header["name"] == "To"),
+                    (header["value"]
+                     for header in headers if header["name"] == "To"),
                     "",
                 ).strip()
                 if reply_to := next(
@@ -292,7 +282,7 @@ def mark_as_read(
     gmail_secret: str | None = None,
 ):
     import asyncio
-    creds = asyncio.run(get_credentials(user_email))
+    creds = asyncio.run(get_credentials(gmail_token, gmail_secret))
 
     service = build("gmail", "v1", credentials=creds)
     service.users().messages().modify(
@@ -322,12 +312,12 @@ def get_events_for_days(date_strs: list[str]):
     # Note: This function needs user_email from config - will be handled by calling code
     from .main.config import get_config
     from langchain_core.runnables.config import ensure_config
-    
+
     config = ensure_config()
     user_config = get_config(config)
     user_email = user_config["email"]
-    
-    creds = asyncio.run(get_credentials(user_email))
+
+    creds = asyncio.run(get_credentials(None, None))
     service = build("calendar", "v3", credentials=creds)
     results = ""
     for date_str in date_strs:
@@ -445,5 +435,6 @@ def send_calendar_invite(
         ).execute()
         return True
     except Exception as e:
-        logger.info(f"An error occurred while sending the calendar invite: {e}")
+        logger.info(
+            f"An error occurred while sending the calendar invite: {e}")
         return False
