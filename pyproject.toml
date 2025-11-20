@@ -22,8 +22,6 @@ python-dateutil = "^2.9.0.post0"
 python-dotenv = "^1.0.1"
 langgraph-cli = {extras = ["inmem"], version = "^0.3.6"}
 langgraph-api = "^0.2.134"
-google-auth-httplib2 = "^0.2.0"
-google-auth-oauthlib = "^1.2.2"
 
 [tool.setuptools.packages.find]
 where = ["src"]
