@@ -2,6 +2,7 @@ import logging
 from datetime import datetime, timedelta, time
 from pathlib import Path
 from typing import Iterable
+from pydantic import BaseModel, Field
 import pytz
 import os
 import json
@@ -16,7 +17,6 @@ import email.utils
 from langchain_auth import Client
 
 from langchain_core.tools import tool
-from langchain_core.pydantic_v1 import BaseModel, Field
 
 from eaia.schemas import EmailData
 
@@ -32,20 +32,20 @@ async def get_credentials(
     langsmith_api_key: str | None = None
 ) -> Credentials:
     """Get Google API credentials using langchain auth-client.
-    
+
     Args:
         user_email: User's Gmail email address (used as user_id for auth)
         langsmith_api_key: LangSmith API key for auth client
-        
+
     Returns:
         Google OAuth2 credentials
     """
     api_key = langsmith_api_key or os.getenv("LANGSMITH_API_KEY")
     if not api_key:
         raise ValueError("LANGSMITH_API_KEY environment variable must be set")
-    
+
     client = Client(api_key=api_key)
-    
+
     try:
         # Authenticate with Google using the user's email as user_id
         auth_result = await client.authenticate(
@@ -53,11 +53,11 @@ async def get_credentials(
             scopes=_SCOPES,
             user_id=user_email
         )
-        
+
         if auth_result.needs_auth:
             print(f"Please visit: {auth_result.auth_url}")
             print("Complete the OAuth flow and then retry.")
-            
+
             # Wait for completion outside of LangGraph context
             completed_result = await client.wait_for_completion(
                 auth_id=auth_result.auth_id,
@@ -66,19 +66,19 @@ async def get_credentials(
             token = completed_result.token
         else:
             token = auth_result.token
-        
+
         if not token:
             raise ValueError("Failed to obtain access token")
-        
+
         # Create credentials object from the token
         # langchain auth-client returns the access token as a string
         creds = Credentials(
             token=token,
             scopes=_SCOPES
         )
-        
+
         return creds
-        
+
     finally:
         await client.close()
 
@@ -137,7 +137,8 @@ def get_recipients(
         if header["name"].lower() == "from":
             sender = header["value"]
     if sender:
-        recipients.add(sender)  # Ensure the original sender is included in the response
+        # Ensure the original sender is included in the response
+        recipients.add(sender)
     for r in list(recipients):
         if email_address in r:
             recipients.remove(r)
@@ -145,7 +146,8 @@ def get_recipients(
 
 
 def send_message(service, user_id, message):
-    message = service.users().messages().send(userId=user_id, body=message).execute()
+    message = service.users().messages().send(
+        userId=user_id, body=message).execute()
     return message
 
 
@@ -216,7 +218,8 @@ async def fetch_group_emails(
     for message in messages:
         try:
             msg = (
-                service.users().messages().get(userId="me", id=message["id"]).execute()
+                service.users().messages().get(
+                    userId="me", id=message["id"]).execute()
             )
             thread_id = msg["threadId"]
             payload = msg["payload"]
@@ -247,11 +250,13 @@ async def fetch_group_emails(
                     header["value"] for header in headers if header["name"] == "Subject"
                 )
                 from_email = next(
-                    (header["value"] for header in headers if header["name"] == "From"),
+                    (header["value"]
+                     for header in headers if header["name"] == "From"),
                     "",
                 ).strip()
                 _to_email = next(
-                    (header["value"] for header in headers if header["name"] == "To"),
+                    (header["value"]
+                     for header in headers if header["name"] == "To"),
                     "",
                 ).strip()
                 if reply_to := next(
@@ -322,11 +327,11 @@ def get_events_for_days(date_strs: list[str]):
     # Note: This function needs user_email from config - will be handled by calling code
     from .main.config import get_config
     from langchain_core.runnables.config import ensure_config
-    
+
     config = ensure_config()
     user_config = get_config(config)
     user_email = user_config["email"]
-    
+
     creds = asyncio.run(get_credentials(user_email))
     service = build("calendar", "v3", credentials=creds)
     results = ""
@@ -445,5 +450,6 @@ def send_calendar_invite(
         ).execute()
         return True
     except Exception as e:
-        logger.info(f"An error occurred while sending the calendar invite: {e}")
+        logger.info(
+            f"An error occurred while sending the calendar invite: {e}")
         return False

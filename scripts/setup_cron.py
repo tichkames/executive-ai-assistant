@@ -7,7 +7,7 @@ from langgraph_sdk import get_client
 
 async def main(
     url: Optional[str] = None,
-    minutes_since: int = 60,
+    minutes_since: int = 120,
 ):
     if url is None:
         client = get_client(url="http://127.0.0.1:2024")
@@ -15,7 +15,7 @@ async def main(
         client = get_client(
             url=url
         )
-    await client.crons.create("cron", schedule="*/10 * * * *", input={"minutes_since": minutes_since})
+    await client.crons.create("cron", schedule="*/60 * * * *", input={"minutes_since": minutes_since})
 
 
 
@@ -30,7 +30,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--minutes-since",
         type=int,
-        default=60,
+        default=120,
         help="Only process emails that are less than this many minutes old.",
     )
 
