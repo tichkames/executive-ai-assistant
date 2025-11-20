@@ -40,7 +40,7 @@ async def get_credentials(
     Returns:
         Google OAuth2 credentials
     """
-    api_key = langsmith_api_key or os.getenv("LANGSMITH_API_KEY")
+    api_key = langsmith_api_key or os.getenv("_LANGSMITH_API_KEY")
     if not api_key:
         raise ValueError("LANGSMITH_API_KEY environment variable must be set")
 
