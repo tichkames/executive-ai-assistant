@@ -65,7 +65,7 @@ Subject: {subject}
 
 async def find_meeting_time(state: State, config: RunnableConfig):
     """Write an email to a customer."""
-    model = config["configurable"].get("model", "gpt-4o")
+    model = config["configurable"].get("model", "gpt-5-mini-2025-08-07")
     llm = ChatOpenAI(model=model, temperature=0)
     agent = create_agent(llm, [get_events_for_days])
     current_date = datetime.now()

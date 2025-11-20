@@ -11,7 +11,7 @@ rewrite_prompt = """You job is to rewrite an email draft to sound more like {nam
 
 {name}'s assistant just drafted an email. It is factually correct, but it may not sound like {name}. \
 Your job is to rewrite the email keeping the information the same (do not add anything that is made up!) \
-but adjusting the tone. 
+but adjusting the tone.
 
 {instructions}
 
@@ -31,7 +31,7 @@ Subject: {subject}
 
 
 async def rewrite(state: State, config, store):
-    model = config["configurable"].get("model", "gpt-4o")
+    model = config["configurable"].get("model", "gpt-5-mini-2025-08-07")
     llm = ChatOpenAI(model=model, temperature=0)
     prev_message = state["messages"][-1]
     draft = prev_message.tool_calls[0]["args"]["content"]
@@ -56,9 +56,7 @@ async def rewrite(state: State, config, store):
         instructions=_prompt,
         name=prompt_config["name"],
     )
-    model = llm.with_structured_output(ReWriteEmail).bind(
-        tool_choice={"type": "function", "function": {"name": "ReWriteEmail"}}
-    )
+    model = llm.with_structured_output(ReWriteEmail)
     response = await model.ainvoke(input_message)
     tool_calls = [
         {

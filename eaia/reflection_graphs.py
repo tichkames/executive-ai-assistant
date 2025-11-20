@@ -93,7 +93,6 @@ async def update_general(state: ReflectionState, config, store: BaseStore):
         )
 
 
-
 general_reflection_graph = StateGraph(ReflectionState)
 general_reflection_graph.add_node(update_general)
 general_reflection_graph.add_edge(START, "update_general")
@@ -148,8 +147,8 @@ class MultiMemoryInput(MessagesState):
 
 
 async def determine_what_to_update(state: MultiMemoryInput):
-    reflection_model = ChatOpenAI(model="gpt-4o", disable_streaming=True)
-    reflection_model = ChatAnthropic(model="claude-3-5-sonnet-latest")
+    reflection_model = ChatAnthropic(
+        model="claude-sonnet-4-5-20250929", disable_streaming=True)
     trajectory = get_trajectory_clean(state["messages"])
     types_of_prompts = "\n".join(
         [f"`{p_type}`: {MEMORY_TO_UPDATE[p_type]}" for p_type in state["prompt_types"]]
@@ -163,7 +162,8 @@ async def determine_what_to_update(state: MultiMemoryInput):
     class MemoryToUpdate(TypedDict):
         memory_types_to_update: list[str]
 
-    response = reflection_model.with_structured_output(MemoryToUpdate).invoke(prompt)
+    response = reflection_model.with_structured_output(
+        MemoryToUpdate).invoke(prompt)
     sends = []
     for t in response["memory_types_to_update"]:
         _state = {

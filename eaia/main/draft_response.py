@@ -50,7 +50,7 @@ When adding new recipients - only do that if {name} explicitly asks for it and y
 # Using the `SendCalendarInvite` tool
 
 Sometimes you will want to schedule a calendar event. You can do this with the `SendCalendarInvite` tool.
-If you are sure that {name} would want to schedule a meeting, and you know that {name}'s calendar is free, you can schedule a meeting by calling the `SendCalendarInvite` tool. {name} trusts you to pick good times for meetings. You shouldn't ask {name} for what meeting times are preferred, but you should make sure he wants to meet. 
+If you are sure that {name} would want to schedule a meeting, and you know that {name}'s calendar is free, you can schedule a meeting by calling the `SendCalendarInvite` tool. {name} trusts you to pick good times for meetings. You shouldn't ask {name} for what meeting times are preferred, but you should make sure he wants to meet.
 
 {schedule_preferences}
 
@@ -81,7 +81,7 @@ Here is the email thread. Note that this is the full email thread. Pay special a
 
 async def draft_response(state: State, config: RunnableConfig, store: BaseStore):
     """Write an email to a customer."""
-    model = config["configurable"].get("model", "gpt-4o")
+    model = config["configurable"].get("model", "gpt-5-mini-2025-08-07")
     llm = ChatOpenAI(
         model=model,
         temperature=0,
@@ -148,7 +148,8 @@ async def draft_response(state: State, config: RunnableConfig, store: BaseStore)
         response = await model.ainvoke(messages)
         if len(response.tool_calls) != 1:
             i += 1
-            messages += [{"role": "user", "content": "Please call a valid tool call."}]
+            messages += [{"role": "user",
+                          "content": "Please call a valid tool call."}]
         else:
             break
     return {"draft": response, "messages": [response]}
